@@ -16,7 +16,9 @@ void read_rpm()
 void setup() 
 {
   pinMode(INTERRUPT_PIN, INPUT);
+  //Start Serial
   Serial.begin(9600);
+  //Create Interrupt That triggers LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), read_rpm, RISING);  
 }
 
