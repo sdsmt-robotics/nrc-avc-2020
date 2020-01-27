@@ -13,12 +13,24 @@ void read_rpm()
   Serial.println(RPM);
 }
 
+int output_rpm()
+{
+  //Multiplies measured rpm to time constant for actual rpm
+  int rpm = RPM * 120;
+
+  //Output for debug
+  Serial.print("RMP:");
+  Serial.println(rpm);
+  
+  return rpm;
+}
+
 void setup() 
 {
+  //Prepares interrupt pin
   pinMode(INTERRUPT_PIN, INPUT);
-  //Start Serial
   Serial.begin(9600);
-  //Create Interrupt That triggers LOW to HIGH
+  //Make the interrupt pin to trigger when signal goes LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), read_rpm, RISING);  
 }
 
@@ -31,8 +43,7 @@ void loop()
   {
     temp_time = time_mils;
     Serial.println("Half Sec"); 
-    Serial.print("RMP:");
-    Serial.println(RPM * 120);
+    output_rpm();
     
     //Resets RPM
     RPM = 0;
