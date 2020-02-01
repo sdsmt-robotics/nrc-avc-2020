@@ -7,10 +7,7 @@ upper = 255
 lower = 100
 
 # set the bgr val of the color you are trying to select
-#bgrVal = np.uint8([[[66,74,38 ]]])
-bgrVal = np.uint8([[[65,50,215 ]]])
-#bgrVal = np.uint8([[[170,110,50 ]]])
-
+bgrVal = np.uint8([[[80,207,204 ]]])
 hsvVal = cv2.cvtColor(bgrVal,cv2.COLOR_BGR2HSV)
 print ("hsvVal = ", hsvVal)
 
