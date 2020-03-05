@@ -45,10 +45,17 @@ const double rev_to_speed = 1;
 //number of pulses from the revolution sensor triggered by interrupts
 volatile int revolution_count = 0;
 
+void set_speed_AVC(const std_msgs::Float32& velocity);
+void rev_interupt();
+double get_speed();
+void set_turn_AVC(const std_msgs::Int16& dir);
+
 // Define global variables for ross
 ros::NodeHandle  node_handle;
 std_msgs::Float32 speed_current;
 ros::Publisher returner("speed_current", &speed_current);
+ros::Subscriber<std_msgs::Int16> sub1("turn_angle", set_turn_AVC);
+ros::Subscriber<std_msgs::Float32> sub2("speed_set", set_speed_AVC);
 
 //Attempts to set the motor to a reasonable speed based on input.
 //Returns false on invalid input although velocity will be set to max or min depending.
@@ -117,9 +124,6 @@ void set_turn_AVC(const std_msgs::Int16& dir) // max -25(left) to 25(right)
 
    return;
 }
-
-ros::Subscriber<std_msgs::Int16> sub1("turn_angle", set_turn_AVC);
-ros::Subscriber<std_msgs::Float32> sub2("speed_set", set_speed_AVC);
 
 
 void setup() {
