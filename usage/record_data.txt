@@ -1,0 +1,9 @@
+To record data from the car, use rosbag
+
+When you want to start recording, run:
+	rosbag record -a
+When you want to play back all messages recorded, run:
+	rosbag play <file name>
+If you want to convert a topic from the bag into a csv file, run:
+	rostopic echo -b <file.bag> -p </topic> > data.txt
+
