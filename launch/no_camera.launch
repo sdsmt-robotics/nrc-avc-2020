@@ -1,0 +1,9 @@
+<launch>
+	<include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch" />
+	
+	<node pkg="avc_nrc_2020" type="ACK_EKF_step" name="ack_ekf" output="screen">
+	</node>
+
+	<node pkg="avc_nrc_2020" type="ACK_p-theta_step" name="ack_p_theta" output="screen">
+	</node>
+</launch>

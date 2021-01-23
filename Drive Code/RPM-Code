@@ -1,0 +1,51 @@
+#define INTERRUPT_PIN 2
+
+int RPM = 0;
+int time_mils = 0;
+int temp_time = 0;
+
+
+void read_rpm()
+{
+  //Increase The RPM Counter By One
+  RPM++;
+  Serial.print("Interrupt");
+  Serial.println(RPM);
+}
+
+int output_rpm()
+{
+  //Multiplies measured rpm to time constant for actual rpm
+  int rpm = RPM * 120;
+
+  //Output for debug
+  Serial.print("RMP:");
+  Serial.println(rpm);
+  
+  return rpm;
+}
+
+void setup() 
+{
+  //Prepares interrupt pin
+  pinMode(INTERRUPT_PIN, INPUT);
+  Serial.begin(9600);
+  //Make the interrupt pin to trigger when signal goes LOW to HIGH
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), read_rpm, RISING);  
+}
+
+void loop() 
+{
+  time_mils = millis();
+  
+  //Checks if quarter sec has passed
+  if((time_mils - temp_time) > 500)
+  {
+    temp_time = time_mils;
+    Serial.println("Half Sec"); 
+    output_rpm();
+    
+    //Resets RPM
+    RPM = 0;
+  }
+}

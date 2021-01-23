@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+import rospy
+import roslib
+import sys
+import time
+import numpy as np
+from std_msgs.msg import Int16
+from std_msgs.msg import Float32
+from geometry_msgs.msg import Pose2D
+from scipy import linalg
+
+
+class AckPTheta:
+
+    def __init__(self, points_array=None, r=0.07, l=0.36, k_p=50, robot_d=1):
+
+        # Publishes the current [x, y, theta] state estimate
+        self.angle_pub = rospy.Publisher("turn_angle", Int16)
+        self.speed_pub = rospy.Publisher("speed_set", Float32)
+
+        # Computes the current state estimate from the gps data
+        self.ekf_sub = rospy.Subscriber("/EKF/Pose2D", Pose2D, self.callback)
+        self.velocity_sub = rospy.Subscriber("/speed_current", Float32, self.velocity_callback)
+
+        if points_array is None:
+            self.points = np.array([[-5, -5], [5, 5]])
+        else:
+            self.points = points_array
+
+        self.current_point = 0
+        self.k_p = k_p
+        self.w = 1
+        self.robot_d_sq = robot_d ** 2
+        self.r = r
+        self.l = l
+        self.loc = [0, 0, 0]
+
+    # Returns the angle difference between the current trajectory and the goal, measured CCW from the current trajectory
+    def theta_error(self, x, y, t, x_d, y_d):
+        t_goal = np.arctan2(y_d - y, x_d - x)
+        e = t_goal - t
+        ## CRITICAL: ENSURE THAT THE ERROR IS BETWEEN -PI, PI OTHERWISE IT BEHAVES WEIRD
+        if e > np.pi:
+            e = np.pi * 2 - e
+        elif e < -np.pi:
+            e = np.pi * 2 + e
+        return e
+
+    def p_ik(self, e):
+        return np.arctan2(self.r*self.l*self.k_p*e, self.w)
+
+    def callback(self, data):
+        if self.current_point < self.points.shape[0] - 1:
+            ## Compute current position based on last time step and measurement
+            # From EKF
+    	    self.loc[0] = data.x
+    	    self.loc[1] = data.y
+    	    self.loc[2] = data.theta
+
+            ## Compute the angle error
+            e = self.theta_error(self.loc[0], self.loc[1], self.loc[2],
+                                 self.points[self.current_point + 1][0], self.points[self.current_point + 1][1])
+            #print('Angle error is: ' + str(e))
+            # Compute new wheel angle ans send it to the car
+            phi = self.p_ik(e) * 180 / np.pi
+            #print('Angle sending to car: ' + str(phi))
+            self.angle_pub.publish(phi)
+            self.speed_pub.publish(1.00)
+
+            ## Determine if we passed the obstacle
+            d = (self.points[self.current_point + 1][0] - self.loc[0]) ** 2 + \
+                (self.points[self.current_point + 1][1] - self.loc[1]) ** 2
+            if d < self.robot_d_sq:
+                self.current_point += 1
+        else:
+            self.speed_pub.publish(0.00)
+            self.angle_pub.publish(0)
+
+    def velocity_callback(self, data):
+        # Update w from data
+        self.w = data.data
+        #print('Speed is: ' + str(self.w))
+
+def main():
+    rospy.init_node('ack_p_theta', anonymous=True)
+    p_theta = AckPTheta()
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        print("Shutting down")
+    kalman.output.release()
+
+
+if __name__ == '__main__':
+    main()
+# current_point stores the index of the current point
+# loc = [x, y, theta] current position
+# while current_point < len(points):
+    # if current_loc > len(points) - 1:
+        # if v > (v_min + v_ramp):
+            # v = v - v_ramp
+    # elif v < (v_min - v_ramp):
+        # v = v + v_ramp
+    # e = theta_error()
+    # w1, w2 = p_ik
+    # loc = fk_dt
+    # d = sqrt(points(current_point) - loc)
+    # if d < robot_d:
+        # current_point += 1
