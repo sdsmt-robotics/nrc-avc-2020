@@ -1,9 +1,15 @@
 <launch>
-	<include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch" />
-	
-	<node pkg="avc_nrc_2020" type="ACK_EKF_step" name="ack_ekf" output="screen">
-	</node>
+  <include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch">
+    <arg name="baud" value="9600"/>
+  </include>
 
-	<node pkg="avc_nrc_2020" type="ACK_p-theta_step" name="ack_p_theta" output="screen">
-	</node>
+  <node pkg="rosserial_python" type="serial_node.py" name="arduino_node" output="screen">
+    <param name="port" value="/dev/ttyUSB1"/>
+  </node>
+
+  <node pkg="avc_nrc_2020" type="ACK_EKF_step" name="ack_ekf" output="screen">
+  </node>
+
+  <node pkg="avc_nrc_2020" type="ACK_p-theta_step" name="ack_p_theta" output="screen">
+  </node>
 </launch>
