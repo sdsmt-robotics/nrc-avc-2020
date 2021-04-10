@@ -8,7 +8,6 @@ from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import Float32
-from std_msgs.msg import Int16
 from scipy import linalg
 
 
@@ -25,7 +24,7 @@ class AckEkf:
 
         # Updates the local speed and wheel angle
         self.velocity_sub = rospy.Subscriber("/speed_current", Float32, self.velocity_callback)
-        self.angle_sub = rospy.Subscriber("/turn_angle", Int16, self.angle_callback)
+        self.angle_sub = rospy.Subscriber("/IMU/theta", Float32, self.angle_callback)
 
         # Store last time for dt calculation
         self.last_time = rospy.Time.now().to_sec()
@@ -95,21 +94,21 @@ class AckEkf:
     	    self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
     	    self.z[2] = self.p
 
-	# Compute step of Kalman filter
-	self.xp[0] = self.xf[0] + dd * self.w * np.cos(self.xf[2])
-	self.xp[1] = self.xf[1] + dd * self.w * np.sin(self.xf[2])
-	self.xp[2] = self.xf[2] + dd * np.tan(self.p) / self.L
-	F1 = [1.0, 0.0, -dd * self.w * np.sin(self.xf[2])]
-	F2 = [0, 1, dd * self.w * np.cos(self.xf[2])]
-	F = np.array([F1, F2, [0, 0, 1]])
-	FT = F.T
-	pp = np.dot(F, np.dot(self.P, FT)) + self.V
-	y = np.dot(self.H, self.z) - np.dot(self.H, self.xp)
-	S = np.dot(self.H, np.dot(pp, self. HT)) + self.W
-	SI = linalg.inv(S)
-	kal = np.dot(pp, np.dot(self.HT, SI))
-	self.xf = self.xp + np.dot(kal, y)
-	self.P = pp - np.dot(kal, np.dot(self.H, pp))
+            # Compute step of Kalman filter
+            self.xp[0] = self.xf[0] + dd * self.w * np.cos(self.xf[2])
+            self.xp[1] = self.xf[1] + dd * self.w * np.sin(self.xf[2])
+            self.xp[2] = self.xf[2] + dd * np.tan(self.p) / self.L
+            F1 = [1.0, 0.0, -dd * self.w * np.sin(self.xf[2])]
+            F2 = [0, 1, dd * self.w * np.cos(self.xf[2])]
+            F = np.array([F1, F2, [0, 0, 1]])
+            FT = F.T
+            pp = np.dot(F, np.dot(self.P, FT)) + self.V
+            y = np.dot(self.H, self.z) - np.dot(self.H, self.xp)
+            S = np.dot(self.H, np.dot(pp, self. HT)) + self.W
+            SI = linalg.inv(S)
+            kal = np.dot(pp, np.dot(self.HT, SI))
+            self.xf = self.xp + np.dot(kal, y)
+            self.P = pp - np.dot(kal, np.dot(self.H, pp))
     	
     	# Publish the Pose estimate
     	pose = Pose2D()
@@ -133,7 +132,7 @@ class AckEkf:
 
     def angle_callback(self, data):
         # Update p from data
-        self.p = data.data * np.pi / 180
+        self.p = data.data
 
 
 def main():
