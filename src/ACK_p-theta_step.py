@@ -4,36 +4,42 @@ import roslib
 import sys
 import time
 import numpy as np
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Int16
 from std_msgs.msg import Float32
-from geometry_msgs.msg import Pose2D
 from scipy import linalg
+import conversion_lib
 
 
 class AckPTheta:
 
-    def __init__(self, points_array=None, r=0.07, l=0.36, k_p=50, robot_d=1):
+    def __init__(self):
 
-        # Publishes the current [x, y, theta] state estimate
-        self.angle_pub = rospy.Publisher("turn_angle", Int16)
-        self.speed_pub = rospy.Publisher("speed_set", Float32)
+        # Get params from launch file
+        points_array = rospy.get_param('~points_array', None)
+        self.r = rospy.get_param('~r', 0.07)
+        self.l = rospy.get_param('~l', 0.36)
+        self.k_p = rospy.get_param('~k_p', 50)
+        self.robot_d_sq = rospy.get_param('~threshold_dist', 1) ** 2
+        self.target_vel = rospy.get_param('~target_vel', 1)
+        self.w = self.target_vel
+        init_state = rospy.get_param('~inital_state', [0, 0, 0, 0, 0, 0])
 
-        # Computes the current state estimate from the gps data
-        self.ekf_sub = rospy.Subscriber("/EKF/Pose2D", Pose2D, self.callback)
-        self.velocity_sub = rospy.Subscriber("/speed_current", Float32, self.velocity_callback)
-
+        # Set up waypoint array
         if points_array is None:
-            self.points = np.array([[-5, -5], [5, 5]])
+            self.points = np.array([[5, 5], [5, 10]])
         else:
             self.points = points_array
-
         self.current_point = 0
-        self.k_p = k_p
-        self.w = 1
-        self.robot_d_sq = robot_d ** 2
-        self.r = r
-        self.l = l
-        self.loc = [0, 0, 0]
+        self.loc = init_state[0:3]
+
+        # Publishes the current [x, y, theta] state estimate
+        self.angle_pub = rospy.Publisher("target_wheel_angle", Int16)
+        self.speed_pub = rospy.Publisher("target_velocity", Float32)
+
+        # Computes the current state estimate from the gps data
+        self.ekf_sub = rospy.Subscriber("/EKF/Odometry", Odometry, self.callback)
+        self.velocity_sub = rospy.Subscriber("/speed_current", Float32, self.velocity_callback)
 
     # Returns the angle difference between the current trajectory and the goal, measured CCW from the current trajectory
     def theta_error(self, x, y, t, x_d, y_d):
@@ -53,9 +59,10 @@ class AckPTheta:
         if self.current_point < self.points.shape[0] - 1:
             ## Compute current position based on last time step and measurement
             # From EKF
-    	    self.loc[0] = data.x
-    	    self.loc[1] = data.y
-    	    self.loc[2] = data.theta
+            self.loc[0] = data.pose.pose.position.x
+            self.loc[1] = data.pose.pose.position.y
+            eul = conversion_lib.quat2eul(data.pose.pose.orientation)
+            self.loc[2] = eul[0, 0]
 
             ## Compute the angle error
             e = self.theta_error(self.loc[0], self.loc[1], self.loc[2],
@@ -65,7 +72,7 @@ class AckPTheta:
             phi = self.p_ik(e) * 180 / np.pi
             #print('Angle sending to car: ' + str(phi))
             self.angle_pub.publish(phi)
-            self.speed_pub.publish(1.00)
+            self.speed_pub.publish(self.target_vel)
 
             ## Determine if we passed the obstacle
             d = (self.points[self.current_point + 1][0] - self.loc[0]) ** 2 + \
@@ -88,7 +95,7 @@ def main():
         rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
-    kalman.output.release()
+    p_theta.output.release()
 
 
 if __name__ == '__main__':
