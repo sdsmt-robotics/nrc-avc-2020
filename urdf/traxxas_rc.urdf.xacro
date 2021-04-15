@@ -1,0 +1,224 @@
+<?xml version="1.0"?>
+<robot name="traxxas_rc" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="half_front_track_width" value="0.33" />
+  <xacro:property name="half_rear_track_width" value="0.33" />
+  <xacro:property name="half_wheelbase" value="0.355" />
+
+  <xacro:property name="wheel_radius" value="0.07" />
+  <xacro:property name="wheel_thickness" value="0.085" />
+  <xacro:property name="wheel_mass" value="30" />
+
+  <xacro:property name="body_mass" value="2000" />
+  <xacro:property name="body_width" value="${2*half_rear_track_width}" />
+  <xacro:property name="body_depth" value="${2*half_wheelbase + 0.2}" />
+  <xacro:property name="body_length" value="0.01" />
+
+  <xacro:arg name="pub_tf" default="true" />
+  <xacro:arg name="robot_name" default="" />
+
+  <xacro:property name="robot_name_prop" value="$(arg robot_name)" />
+
+  <gazebo>
+    <plugin name="imu_controller" filename="libhector_gazebo_ros_imu.so">
+      <robotNamespace>/</robotNamespace>
+      <updateRate>10</updateRate>
+      <bodyName>base_link</bodyName>
+      <topicName>imu/data</topicName>
+      <accelDrift>0.005 0.005 0.005</accelDrift>
+      <accelGaussianNoise>0.005 0.005 0.005</accelGaussianNoise>
+      <rateDrift>0.005 0.005 0.005 </rateDrift>
+      <rateGaussianNoise>0.005 0.005 0.005 </rateGaussianNoise>
+      <headingDrift>0.005</headingDrift>
+      <headingGaussianNoise>0.005</headingGaussianNoise>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="gps_controller" filename="libhector_gazebo_ros_gps.so">
+      <updateRate>5</updateRate>
+      <robotNamespace>/</robotNamespace>
+      <bodyName>base_link</bodyName>
+      <frameId>base_link</frameId>
+      <topicName>gps/fix</topicName>
+      <velocityTopicName>vel</velocityTopicName>
+      <referenceLatitude>44.0805</referenceLatitude>
+      <referenceLongitude>103.2310</referenceLongitude>
+      <referenceHeading>0</referenceHeading>
+      <referenceAltitude>1000</referenceAltitude>
+      <drift>0.5 0.5 0.5</drift>
+      <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
+      <velocityDrift>0 0 0</velocityDrift>
+      <velocityGaussianNoise>0.1 0.1 0.1</velocityGaussianNoise>
+      <!--<drift>0.0001 0.0001 0.0001</drift>-->
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <!-- Simulated vehicle interface -->
+    <plugin name="audibot_interface_plugin" filename="libaudibot_interface_plugin.so" >
+      <robotName>$(arg robot_name)</robotName>
+      <pubTf>$(arg pub_tf)</pubTf>
+      <tfFreq>100.0</tfFreq>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <!-- Publish current joint angles -->
+    <plugin name="joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
+        <xacro:if value="${robot_name_prop != ''}" >
+          <robotNamespace>$(arg robot_name)</robotNamespace>
+        </xacro:if>
+        <jointName>
+            steer_fl, steer_fr, wheel_fl, wheel_fr, wheel_rl, wheel_rr
+        </jointName>
+        <updateRate>100</updateRate>
+        <alwaysOn>true</alwaysOn>
+    </plugin>
+  </gazebo>
+
+  <xacro:macro name="rear_wheel" params="name x y z flip" >
+    <link name="wheel_${name}" >
+      <visual>
+        <origin xyz="0 0 0" rpy="1.57079632679 ${flip * 3.1415926535} 0" />
+        <geometry>
+          <mesh filename="package://avc_nrc_2020/meshes/traxxas_wheel.dae" scale="1 1 1" />
+        </geometry>
+      </visual>
+
+      <collision>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_thickness}" />
+        </geometry>
+      </collision>
+
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${wheel_mass}"/>
+        <inertia ixx="${wheel_mass/12*(3*wheel_radius*wheel_radius + wheel_thickness*wheel_thickness)}" ixy="0" ixz="0" iyy="${wheel_mass/12*(3*wheel_radius*wheel_radius + wheel_thickness*wheel_thickness)}" iyz="0" izz="${wheel_mass/2 * wheel_radius*wheel_radius}"/>
+      </inertial>
+
+    </link>
+    <joint name="wheel_${name}" type="continuous" >
+      <parent link="base_link" />
+      <child link="wheel_${name}" />
+      <origin xyz="${x} ${y} ${z}" rpy="-1.57079632679 0 0" />
+      <axis xyz="0 0 1" />
+      <limit effort="1000.0" velocity="22.0" />
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="front_wheel" params="name x y z flip" >
+    <link name="wheel_${name}" >
+      <visual>
+        <origin xyz="0 0 0" rpy="1.57079632679 ${flip * pi} 0" />
+        <geometry>
+          <mesh filename="package://avc_nrc_2020/meshes/traxxas_wheel.dae" scale="1 1 1" />
+        </geometry>
+      </visual>
+
+      <collision>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_thickness}" />
+        </geometry>
+      </collision>
+
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${wheel_mass}"/>
+        <inertia ixx="${wheel_mass/12*(3*wheel_radius*wheel_radius + wheel_thickness*wheel_thickness)}" ixy="0" ixz="0" iyy="${wheel_mass/12*(3*wheel_radius*wheel_radius + wheel_thickness*wheel_thickness)}" iyz="0" izz="${wheel_mass/2 * wheel_radius*wheel_radius}"/>
+      </inertial>
+    </link>
+
+    <link name="steer_${name}" >
+      <inertial>
+        <origin xyz="-0.013054 -0.0295 0" rpy="0 0 0"/>
+        <mass value="20.0"/>
+        <inertia ixx="2" ixy="0" ixz="0" iyy="2" iyz="0" izz="2"/>
+      </inertial>
+    </link>
+
+    <joint name="steer_${name}" type="revolute" >
+      <parent link="base_link" />
+      <child link="steer_${name}" />
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 0" />
+      <axis xyz="0 0 1" />
+      <limit upper="0.6" lower="-0.6" effort="0.0" velocity="0.0" />
+    </joint>
+
+    <joint name="wheel_${name}" type="continuous" >
+      <parent link="steer_${name}" />
+      <child link="wheel_${name}" />
+      <origin xyz="0 0 0" rpy="-1.57079632679 0 0" />
+      <axis xyz="0 0 1" />
+      <limit effort="1000.0" velocity="22.0" />
+    </joint>
+  </xacro:macro>
+
+  <link name="base_footprint">
+  </link>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0.035 0 0.025" rpy="0 0 0" />
+      <geometry>
+        <xacro:if value="$(arg blue)" >
+          <mesh filename="package://avc_nrc_2020/meshes/traxxas.dae" scale="1 1 1" />
+        </xacro:if>
+        <xacro:unless value="$(arg blue)" >
+          <mesh filename="package://avc_nrc_2020/meshes/traxxas.dae" scale="1 1 1" />
+        </xacro:unless>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.035 0 0.025" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://avc_nrc_2020/meshes/traxxas_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${body_mass}"/>
+      <inertia ixx="${body_mass/12 * (body_width*body_width + body_length*body_length)}" ixy="0" ixz="0" iyy="${body_mass/12 * (body_length*body_length + body_depth*body_depth)}" iyz="0" izz="${body_mass/12 * (body_width*body_width + body_depth*body_depth)}"/>
+    </inertial>
+  </link>
+
+  <joint name="base_link" type="fixed">
+    <origin xyz="${half_wheelbase} 0 ${wheel_radius}" rpy="0 0 0"/>
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+  </joint>
+
+  <xacro:rear_wheel name="rl" x="${-half_wheelbase}" y="${half_rear_track_width}" z="0" flip="1" />
+  <xacro:rear_wheel name="rr" x="${-half_wheelbase}" y="${-half_rear_track_width}" z="0" flip="0" />
+  <xacro:front_wheel name="fl" x="${half_wheelbase}" y="${half_front_track_width}" z="0" flip="1" />
+  <xacro:front_wheel name="fr" x="${half_wheelbase}" y="${-half_front_track_width}" z="0" flip="0" />
+
+  <xacro:property name="wheel_friction" value="1.75" />
+
+  <gazebo reference="base_link" >
+    <mu1>0.5</mu1>
+    <mu2>0.5</mu2>
+  </gazebo>
+
+  <gazebo reference="wheel_fl" >
+    <mu1>${wheel_friction}</mu1>
+    <mu2>${wheel_friction}</mu2>
+  </gazebo>
+
+  <gazebo reference="wheel_fr" >
+    <mu1>${wheel_friction}</mu1>
+    <mu2>${wheel_friction}</mu2>
+  </gazebo>
+
+  <gazebo reference="wheel_rl" >
+    <mu1>${wheel_friction}</mu1>
+    <mu2>${wheel_friction}</mu2>
+  </gazebo>
+
+  <gazebo reference="wheel_rr" >
+    <mu1>${wheel_friction}</mu1>
+    <mu2>${wheel_friction}</mu2>
+  </gazebo>
+
+</robot>

@@ -37,8 +37,8 @@ class AckEkf:
         # GPS reference point and time variable to set GPS_zero to the first measured coordinate
         self.t = 0
         self.gps_zero = [0, 0]
-	self.lat_conv = 111320
-	self.lon_conv = 79968
+        self.lat_conv = 111320
+        self.lon_conv = 79968
 
         # Measurement variance
         self.var1 = v1 ** 2
@@ -64,7 +64,7 @@ class AckEkf:
         self.W = np.eye(3) * self.var2
 
         # Estimate covariance
-        self.P = np.zeros((3, 3))
+        self.P = np.random.randn((3, 3))
 
         # Estimated state
         self.xf = np.zeros(3)
@@ -79,20 +79,20 @@ class AckEkf:
         self.last_time = rospy.Time.now().to_sec()
         dd = self.r * dt
 
-    	# Convert the GPS coordinates to meters away from the first recorded coordinate
-    	if self.t == 0:
-    	    self.t = 1;
-    	    self.gps_zero[0] = data.latitude
-    	    self.gps_zero[1] = data.longitude
-    	    self.z[0] = 0
-    	    self.z[1] = 0
-    	    self.z[2] = self.p
+        # Convert the GPS coordinates to meters away from the first recorded coordinate
+        if self.t == 0:
+            self.t = 1
+            self.gps_zero[0] = data.latitude
+            self.gps_zero[1] = data.longitude
+            self.z[0] = 0
+            self.z[1] = 0
+            self.z[2] = self.p
             self.lat_conv = 111320
             self.lon_conv = 40075 * np.cos(self.gps_zero[1] * 180.0/np.pi) / 360.0
-    	else:
-    	    self.z[0] = (data.latitude - self.gps_zero[0]) * self.lat_conv
-    	    self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
-    	    self.z[2] = self.p
+        else:
+            self.z[0] = (data.latitude - self.gps_zero[0]) * self.lat_conv
+            self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
+            self.z[2] = self.p
 
             # Compute step of Kalman filter
             self.xp[0] = self.xf[0] + dd * self.w * np.cos(self.xf[2])
@@ -109,12 +109,12 @@ class AckEkf:
             kal = np.dot(pp, np.dot(self.HT, SI))
             self.xf = self.xp + np.dot(kal, y)
             self.P = pp - np.dot(kal, np.dot(self.H, pp))
-    	
-    	# Publish the Pose estimate
-    	pose = Pose2D()
-    	pose.x = self.xf[0]
-    	pose.y = self.xf[1]
-    	pose.theta = self.xf[2]
+
+        # Publish the Pose estimate
+        pose = Pose2D()
+        pose.x = self.xf[0]
+        pose.y = self.xf[1]
+        pose.theta = self.xf[2]
         self.pose_pub.publish(pose)
 
     def gps_vel_callback(self, data):
