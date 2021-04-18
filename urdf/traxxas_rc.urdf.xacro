@@ -24,13 +24,19 @@
       <robotNamespace>/</robotNamespace>
       <updateRate>10</updateRate>
       <bodyName>base_link</bodyName>
-      <topicName>imu/data</topicName>
-      <accelDrift>0.005 0.005 0.005</accelDrift>
+      <topicName>imu</topicName>
+      <!--<accelDrift>0.005 0.005 0.005</accelDrift>
       <accelGaussianNoise>0.005 0.005 0.005</accelGaussianNoise>
       <rateDrift>0.005 0.005 0.005 </rateDrift>
       <rateGaussianNoise>0.005 0.005 0.005 </rateGaussianNoise>
       <headingDrift>0.005</headingDrift>
-      <headingGaussianNoise>0.005</headingGaussianNoise>
+      <headingGaussianNoise>0.005</headingGaussianNoise>-->
+      <accelDrift>0.05 0.05 0.05</accelDrift>
+      <accelGaussianNoise>0.05 0.05 0.05</accelGaussianNoise>
+      <rateDrift>0.05 0.05 0.05 </rateDrift>
+      <rateGaussianNoise>0.05 0.05 0.05 </rateGaussianNoise>
+      <headingDrift>0.05</headingDrift>
+      <headingGaussianNoise>0.05</headingGaussianNoise>
     </plugin>
   </gazebo>
 
@@ -40,13 +46,13 @@
       <robotNamespace>/</robotNamespace>
       <bodyName>base_link</bodyName>
       <frameId>base_link</frameId>
-      <topicName>gps/fix</topicName>
+      <topicName>fix</topicName>
       <velocityTopicName>vel</velocityTopicName>
       <referenceLatitude>44.0805</referenceLatitude>
       <referenceLongitude>103.2310</referenceLongitude>
       <referenceHeading>0</referenceHeading>
       <referenceAltitude>1000</referenceAltitude>
-      <drift>0.5 0.5 0.5</drift>
+      <drift>0.25 0.25 0.25</drift>
       <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
       <velocityDrift>0 0 0</velocityDrift>
       <velocityGaussianNoise>0.1 0.1 0.1</velocityGaussianNoise>
