@@ -8,29 +8,47 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32
 from std_msgs.msg import Float64
 from gazebo_msgs.msg import ModelStates
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 from scipy import linalg
 import conversion_lib
 
 
+def pub_markers(markers, publisher, type, scalexyz, rgb):
+    marker = MarkerArray()
+    for i in range(len(markers)):
+        waypoint = Marker()
+        waypoint.header.frame_id = "/world"
+        waypoint.header.stamp = rospy.Time.now()
+        waypoint.type = type
+        waypoint.id = i
+        waypoint.scale.x = scalexyz[0]
+        waypoint.scale.y = scalexyz[1]
+        waypoint.scale.z = scalexyz[2]
+        waypoint.color.a = 1.0
+        waypoint.pose.orientation.w = 1.0
+        waypoint.color.r = rgb[0]
+        waypoint.color.g = rgb[1]
+        waypoint.color.b = rgb[2]
+        waypoint.pose.position.x = markers[i][0]
+        waypoint.pose.position.y = markers[i][1]
+        waypoint.pose.position.z = 0
+        marker.markers.append(waypoint)
+    publisher.publish(marker)
+
+
 class Translator:
     def __init__(self):
-
-        # Get params from launch file
-        points_array = rospy.get_param('~points_array', None)
-        self.r = rospy.get_param('~r', 0.07)
-        self.l = rospy.get_param('~l', 0.36)
-        self.k_p = rospy.get_param('~k_p', 50)
-        self.robot_d_sq = rospy.get_param('~threshold_dist', 1) ** 2
-        self.target_vel = rospy.get_param('~target_vel', 1)
-        self.w = self.target_vel
-        init_state = rospy.get_param('~inital_state', [0, 0, 0, 0, 0, 0])
-        self.car_vel = 0
-        # self.p = 1
-
-        # Publishes the current [x, y, theta] state estimate
         self.angle_sub = rospy.Subscriber("target_wheel_angle", Float32, self.steering_cb)
         self.speed_sub = rospy.Subscriber("target_velocity", Float32, self.throttle_cb)
         self.gazebo_sub = rospy.Subscriber("gazebo/model_states", ModelStates, self.gazebo_cb)
+
+        self.stanchion_pub = rospy.Publisher("stanchions", MarkerArray, queue_size=1)
+        self.stanchions = [[6, -1], [3, -10], [6, -19], [-6, -19], [-6, -1]]
+        self.ramp_pub = rospy.Publisher("ramp", MarkerArray, queue_size=1)
+        self.ramp = [[0.75, -20.75]]
+        self.hoop_pub = rospy.Publisher("hoop", MarkerArray, queue_size=1)
+        self.hoop = [[-6+0.76, -10], [-6-0.76, -10]]
 
         # Publishes the current [x, y, theta] state estimate
         self.angle_pub = rospy.Publisher("steering_cmd", Float64, queue_size=1)
@@ -49,6 +67,10 @@ class Translator:
         return
 
     def gazebo_cb(self, data):
+        pub_markers(self.hoop, self.hoop_pub, 3, [0.2, 0.2, 2], [0, 1, 0])
+        pub_markers(self.ramp, self.ramp_pub, 1, [1.5, 1.5, 2], [0, 0, 1])
+        pub_markers(self.stanchions, self.stanchion_pub, 3, [0.2, 0.2, 2], [1, 0, 0])
+
         car_x_vel = data.twist[1].linear.x
         car_y_vel = data.twist[1].linear.y
         self.car_vel = np.sqrt(car_x_vel**2 + car_y_vel**2)

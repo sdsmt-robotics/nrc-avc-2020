@@ -7,6 +7,8 @@ import numpy as np
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32
 from std_msgs.msg import Float64
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 from scipy import linalg
 import conversion_lib
 
@@ -17,17 +19,19 @@ class AckPTheta:
 
         # Get params from launch file
         points_array = rospy.get_param('~points_array', None)
+        delay_time = rospy.get_param('~delay_time', 0)
         self.r = rospy.get_param('~r', 0.07)
         self.l = rospy.get_param('~l', 0.36)
-        self.k_p = rospy.get_param('~k_p', 50)
+        self.k_p = rospy.get_param('~k_p', 10)
         self.robot_d_sq = rospy.get_param('~threshold_dist', 1) ** 2
         self.target_vel = rospy.get_param('~target_vel', 1)
         self.w = self.target_vel
         init_state = rospy.get_param('~inital_state', [0, 0, 0, 0, 0, 0, 0, 0])
+        time.sleep(delay_time)
 
         # Set up waypoint array
         if points_array is None:
-            self.points = np.array([[0, 0], [7, 1], [0, -10], [7, -20], [-7, -20], [-6, -10], [-7, -10], [7, 1]])
+            self.points = np.array([[0, 0], [7, 0], [2, -10], [7, -20], [0, -21], [-7, -20], [-6, -10], [-7, 0], [7, 0]])
         else:
             self.points = points_array
         self.current_point = 0
@@ -58,6 +62,9 @@ class AckPTheta:
     def callback(self, data):
         if self.current_point < self.points.shape[0] - 1:
             print('target waypoint: ', self.points[self.current_point + 1])
+            d = (self.points[self.current_point + 1][0] - self.loc[0]) ** 2 + \
+                (self.points[self.current_point + 1][1] - self.loc[1]) ** 2
+            print('distance', np.sqrt(d))
             ## Compute current position based on last time step and measurement
             # From EKF
             self.loc[0] = data.pose.pose.position.x
@@ -75,11 +82,11 @@ class AckPTheta:
             self.angle_pub.publish(phi)
             self.speed_pub.publish(self.target_vel)
 
-            # ## Determine if we passed the obstacle
-            # d = (self.points[self.current_point + 1][0] - self.loc[0]) ** 2 + \
-            #     (self.points[self.current_point + 1][1] - self.loc[1]) ** 2
-            # if d < self.robot_d_sq:
-            #     self.current_point += 1
+            ## Determine if we passed the obstacle
+            d = (self.points[self.current_point + 1][0] - self.loc[0]) ** 2 + \
+                (self.points[self.current_point + 1][1] - self.loc[1]) ** 2
+            if d < self.robot_d_sq:
+                self.current_point += 1
         else:
             self.speed_pub.publish(0.00)
             self.angle_pub.publish(0)

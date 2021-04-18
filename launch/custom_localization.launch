@@ -23,6 +23,7 @@
   <!-- robot_localization nodes: -->
   <node pkg="avc_nrc_2020" type="ACK_EKF_step.py"
      name="ekf_localizer_node" output="screen" clear_params="true">
+    <param name="gps_offset_angle" value="0"/>
     <param name="frequency" value="10"/>
     <param name="sensor_timeout" value="2.0"/>
     <param name="r" value="0.07"/>

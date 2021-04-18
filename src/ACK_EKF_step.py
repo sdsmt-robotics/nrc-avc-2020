@@ -18,6 +18,8 @@ class AckEkf:
     def __init__(self):
 
         # Get params from launch file
+        self.gps_offset_angle = rospy.get_param('~gps_offset_angle', 0)
+        self.gps_rotm = conversion_lib.theta_2_rotm(self.gps_offset_angle)
         self.update_frequency = rospy.get_param('~frequency', 10)
         self.sensor_timeout = rospy.get_param('~sensor_timeout', 2.0)
         # Define vehicle dimensions - wheel radius
@@ -40,12 +42,13 @@ class AckEkf:
         self.gps_zero = [0, 0]
         self.lat_conv = 111320
         self.lon_conv = 79968
-        self.re = 6368000 / 20
+        # self.re = 6368000 / 20
 
         # Vehicle wheel angle
         self.p = 0
         # magnetometer yaw measurement
         self.mag_yaw = 0
+        self.mag_zero = 0
         # gyroscope yaw angular velocity measurement
         self.gyro_yaw_dot = 0
         # # GPS velocity data
@@ -67,11 +70,11 @@ class AckEkf:
         self.H[5, 7] = 1
 
         # Measurement covariance
-        gps_std = 0.25
+        gps_std = 0.5
         # gps_vel_std = 0.25
         magnetometer_std = 0.1
-        gyro_std = 0.1
-        acc_xy_std = 0.1
+        gyro_std = 0.25
+        acc_xy_std = 0.25
         self.R = np.diag([gps_std**2, gps_std**2, magnetometer_std,
                           gyro_std, acc_xy_std**2, acc_xy_std**2])
 
@@ -97,6 +100,7 @@ class AckEkf:
         self.last_time = rospy.Time.now().to_sec()
         self.last_imu_time = rospy.Time.now().to_sec()
 
+        time.sleep(5)
         # Define publishers and subscribers
         # Publishes the current [x, y, theta] state estimate
         self.pose_pub = rospy.Publisher("/EKF/Odometry", Odometry, queue_size=1)
@@ -118,12 +122,13 @@ class AckEkf:
         dt = rospy.Time.now().to_sec() - self.last_time
         self.last_time = rospy.Time.now().to_sec()
         dd = self.r * dt
-
         # Convert the GPS coordinates to meters away from the first recorded coordinate
         if self.t == 0:
             self.t = 1
             self.gps_zero[0] = data.latitude
             self.gps_zero[1] = data.longitude
+            self.mag_zero = self.mag_yaw - self.gps_offset_angle
+            # print(self.mag_zero)
             self.z = [0, 0, self.p, 0, 0, 0]
             # self.cos_lat_0 = np.cos(data.latitude)
             # self.x_0 = self.re * data.longitude * self.cos_lat_0
@@ -135,10 +140,21 @@ class AckEkf:
             # self.y = self.re * data.latitude - self.y_0
             # self.z[0] = self.x
             # self.z[1] = self.y
-            self.z[0] = (data.latitude - self.gps_zero[0]) * self.lat_conv
-            self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
-            print('gps deltas: ', self.z[0], self.z[1])
-            self.z[2] = self.mag_yaw
+            gps_xy = np.array([[(data.latitude - self.gps_zero[0]) * self.lat_conv], [(data.longitude - self.gps_zero[1]) * self.lon_conv]])
+            self.z[0:2] = self.gps_rotm.dot(gps_xy)
+            # print(gps_xy, self.z[0:2])
+            # self.z[0] = (data.latitude - self.gps_zero[0]) * self.lat_conv
+            # self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
+            self.mag_yaw -= self.mag_zero
+            # print('gps deltas: ', self.z[0], self.z[1])
+            if np.abs(self.mag_yaw - self.xf[2]) < np.pi:
+                self.z[2] = self.mag_yaw
+            else:
+                if self.mag_yaw - self.xf[2] > np.pi:
+                    self.z[2] = self.mag_yaw - 2*np.pi
+                else:
+                    self.z[2] = self.mag_yaw + 2*np.pi
+            # print(np.abs(self.mag_yaw - self.xf[2]))
             self.z[3] = self.gyro_yaw_dot
             self.z[4] = self.acc_x
             self.z[5] = self.acc_y
@@ -174,6 +190,10 @@ class AckEkf:
         kal = np.dot(pp, np.dot(self.H.T, SI))
         self.xf = self.xp + np.dot(kal, y)
         self.P = pp - np.dot(kal, np.dot(self.H, pp))
+        while self.xf[2] > np.pi:
+            self.xf[2] -= 2*np.pi
+        while self.xf[2] < -np.pi:
+            self.xf[2] += 2*np.pi
 
         # Publish the Pose estimate
         odom = Odometry()
@@ -211,7 +231,7 @@ class AckEkf:
     # update the current vehicle wheel angle
     def angle_callback(self, data):
         # Update p from data
-        self.p = data.data
+        self.p = data.data * 1.1
 
     def imu_cb(self, msg):
         self.mag_yaw = conversion_lib.quat_from_pose2eul(msg.orientation)[0]

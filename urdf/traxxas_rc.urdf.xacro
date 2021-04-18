@@ -31,12 +31,12 @@
       <rateGaussianNoise>0.005 0.005 0.005 </rateGaussianNoise>
       <headingDrift>0.005</headingDrift>
       <headingGaussianNoise>0.005</headingGaussianNoise>-->
-      <accelDrift>0.05 0.05 0.05</accelDrift>
-      <accelGaussianNoise>0.05 0.05 0.05</accelGaussianNoise>
-      <rateDrift>0.05 0.05 0.05 </rateDrift>
-      <rateGaussianNoise>0.05 0.05 0.05 </rateGaussianNoise>
-      <headingDrift>0.05</headingDrift>
-      <headingGaussianNoise>0.05</headingGaussianNoise>
+      <accelDrift>0.5 0.5 0.5</accelDrift>
+      <accelGaussianNoise>0.5 0.5 0.5</accelGaussianNoise>
+      <rateDrift>0.5 0.5 0.5 </rateDrift>
+      <rateGaussianNoise>0.5 0.5 0.5 </rateGaussianNoise>
+      <headingDrift>0.5</headingDrift>
+      <headingGaussianNoise>0.5</headingGaussianNoise>
     </plugin>
   </gazebo>
 
@@ -52,7 +52,7 @@
       <referenceLongitude>103.2310</referenceLongitude>
       <referenceHeading>0</referenceHeading>
       <referenceAltitude>1000</referenceAltitude>
-      <drift>0.25 0.25 0.25</drift>
+      <drift>1 1 1</drift>
       <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
       <velocityDrift>0 0 0</velocityDrift>
       <velocityGaussianNoise>0.1 0.1 0.1</velocityGaussianNoise>

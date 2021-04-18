@@ -1,14 +1,26 @@
 
 ####################################################################################################
-How the car will drive the course:
+
+Course setup:
+Calibrate Gyroscope (We only care about yaw)
+Calibrate GPS (Find x/y directions and validate distance)
+Rotate the map to align with the new x/y orientation
+
+
+If we have time:
+grab 100ish GPS points and find standard deviation
+grab 100ish gyroscope points and find standard deviation
+
 
 Initialization:
 
-Map of the course, with positions for all notable objects
-List of waypoints on target path through the course
+Calibrate gyro
 Active GPS lock
+Let the EKF sit for 15ish seconds
 
 
+####################################################################################################
+How the car will drive the course:
 While running:
 
 Take sensor inputs
