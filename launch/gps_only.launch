@@ -1,5 +1,10 @@
 <launch>
   <include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch">
-    <arg name="baud" value="9600"/>
+    <arg name="baud" value="115200"/>
   </include>
 </launch>
+
+<!-- GPS commands
+$PMTK251,115200*1F Ctrl-M Ctrl-J
+$PMTK220,200*2C Ctrl-M Ctrl-J
+ -->
