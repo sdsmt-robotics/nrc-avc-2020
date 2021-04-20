@@ -28,6 +28,11 @@ const int default_angle_M = 90;
 const int default_lower_angle_M = 0;
 const int default_upper_angle_M = 170;
 
+// Magnetometer calibration variables
+float mx_min = 0;
+float my_min = 0;
+float mx_max = 0;
+float my_max = 0;
 
 //Maximum power allowed
 const float maxPower = 0.2;
@@ -40,7 +45,8 @@ const unsigned long UPDATE_INTERVAL = 10;
 
 LedStrip ledStrip(8, 7, 6);
 
-float kp = 0.06, ki = 0.02, kd = 0.0, N = 10;
+//float kp = 0.06, ki = 0.02, kd = 0.0, N = 10;
+float kp = 0.08, ki = 0.1, kd = 0.0, N = 10;
 PID speedController(kp, ki, kd, N, UPDATE_INTERVAL);
 
 Encoder encoder(5, 4.5, 100);
@@ -78,7 +84,7 @@ void setup() {
   
   //Initialize servos and main motor
   if (DEBUG) Serial.println("Initializing motors...");
-  speedController.setLimits(0, 0.25);
+  speedController.setLimits(0, 0.3);
   initMotors();
   
   if (DEBUG) Serial.println("Initializing encoder...");
@@ -329,9 +335,9 @@ void initMotors() {
  * Test changing the speed to a new value every three seconds.
  */
 void servo_cb( const std_msgs::Float32& msg){
-  int deg = int(msg.data) * 180.0 / Pi;
+  int deg = int(msg.data) * 180.0 / 3.1415926535898;
   deg = setDriveAngle(deg);
-  servo_return.data = deg * Pi / 180.0;
+  servo_return.data = deg * 3.1415926535898 / 180.0;
   servo_pub.publish(&servo_return);
 }
 
@@ -351,7 +357,6 @@ void send_imu_data()
 {
     float mag_offset_x = 0;
     float mag_offset_y = 0;
-    float mag_offset_z = 0;
     float gyro_x, gyro_y, gyro_z;
     float acc_x, acc_y, acc_z;
     float mag_x, mag_y, mag_z;
@@ -360,42 +365,49 @@ void send_imu_data()
       IMU.readAcceleration(acc_x, acc_y, acc_z);
       IMU.readGyroscope(gyro_x, gyro_y, gyro_z);
       IMU.readMagneticField(mag_x, mag_y, mag_z);
+      mx_max = (mag_x > mx_max) ? mag_x : mx_max;
+      my_max = (mag_y > my_max) ? mag_y : my_max;
+      mx_min = (mag_x < mx_min) ? mag_x : mx_min;
+      my_min = (mag_y < my_min) ? mag_y : my_min;
+      mag_offset_x = (mx_min + mx_max) / 2;
+      mag_offset_y = (my_min + my_max) / 2;
+      mag_x -= mag_offset_x;
+      mag_y -= mag_offset_y;
+      float mag_yaw = atan2(mag_y, mag_x);
+//      Serial.print("mag yaw:");
+//      Serial.println(mag_yaw);
+      // Assume variance of 0.01 (std = 0.02 radians or ~10 degrees)
+      // For unknown values assume 1 (std = 1 degree)
+      float orientation_covariance [9] = {1, 0, 0, 0, 1, 0, 0, 0, 0.01};
+      // We don't have values, so the first element should be -1
+      float angular_velocity_covariance [9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+      // Assume variance of 0.01 (std = 0.1 m/s)
+      // For unknown values assume 0.000001 (std = 1 mm/s)
+      float linear_acceleration_covariance [9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
+      //imu_return.header = std_msgs::Header;
+  
+      // Equations to convert just a yaw angle to a quaternion (assumes others are zero)
+      imu_return.orientation.x = 0;
+      imu_return.orientation.y = 0;
+      imu_return.orientation.z = sin(mag_yaw / 2);
+      imu_return.orientation.w = cos(mag_yaw / 2);
+      *imu_return.orientation_covariance = *orientation_covariance;
+  
+      // Gyroscope angular velocities
+      imu_return.angular_velocity.x = gyro_x;
+      imu_return.angular_velocity.y = gyro_y;
+      imu_return.angular_velocity.z = gyro_z;
+      *imu_return.angular_velocity_covariance = *angular_velocity_covariance;
+  
+      // X is forward, Y is Left, Z is up
+      // The accelerometer does weird things (gravity is 8-9 Gs instead of 1)
+      // For now we assume that we can scale that and all other measurements back to 1 and get reasonable values. 
+      imu_return.linear_acceleration.x = acc_x;
+      imu_return.linear_acceleration.y = acc_y;
+      imu_return.linear_acceleration.z = acc_z;
+      *imu_return.linear_acceleration_covariance = *linear_acceleration_covariance;
+  
+      // Publish the IMU data
+      imu_pub.publish(&imu_return);
     }
-    mag_x += mag_offset_x;
-    mag_y += mag_offset_y;
-    mag_z += mag_offset_z;
-    float mag_yaw = atan2(mag_y, mag_x);
-    // Assume variance of 0.01 (std = 0.1 radians or ~10 degrees)
-    // For unknown values assume 1 (std = 1 degree)
-    float orientation_covariance [9] = {1, 0, 0, 0, 1, 0, 0, 0, 0.01};
-    // We don't have values, so the first element should be -1
-    float angular_velocity_covariance [9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-    // Assume variance of 0.01 (std = 0.1 m/s)
-    // For unknown values assume 0.000001 (std = 1 mm/s)
-    float linear_acceleration_covariance [9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
-    //imu_return.header = std_msgs::Header;
-
-    // Equations to convert just a yaw angle to a quaternion (assumes others are zero)
-    imu_return.orientation.x = 0;
-    imu_return.orientation.y = 0;
-    imu_return.orientation.z = sin(mag_yaw / 2);
-    imu_return.orientation.w = cos(mag_yaw / 2);
-    *imu_return.orientation_covariance = *orientation_covariance;
-
-    // Gyroscope angular velocities
-    imu_return.angular_velocity.x = gyro_x;
-    imu_return.linear_acceleration.y = gyro_y;
-    imu_return.linear_acceleration.z = gyro_z;
-    *imu_return.angular_velocity_covariance = *angular_velocity_covariance;
-
-    // X is forward, Y is Left, Z is up
-    // The accelerometer does weird things (gravity is 8-9 Gs instead of 1)
-    // For now we assume that we can scale that and all other measurements back to 1 and get reasonable values. 
-    imu_return.linear_acceleration.x = acc_x;
-    imu_return.linear_acceleration.y = acc_y;
-    imu_return.linear_acceleration.z = acc_z;
-    *imu_return.linear_acceleration_covariance = *linear_acceleration_covariance;
-
-    // Publish the IMU data
-    imu_pub.publish(&imu_return);
 }

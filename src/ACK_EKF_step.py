@@ -70,11 +70,11 @@ class AckEkf:
         self.H[5, 7] = 1
 
         # Measurement covariance
-        gps_std = 0.5
+        gps_std = 0.25
         # gps_vel_std = 0.25
-        magnetometer_std = 0.1
-        gyro_std = 0.25
-        acc_xy_std = 0.25
+        magnetometer_std = 0.01
+        gyro_std = 0.05
+        acc_xy_std = 0.05
         self.R = np.diag([gps_std**2, gps_std**2, magnetometer_std,
                           gyro_std, acc_xy_std**2, acc_xy_std**2])
 
@@ -114,7 +114,7 @@ class AckEkf:
 
         # Updates the local speed and wheel angle
         # self.velocity_sub = rospy.Subscriber("/speed_current", Float32, self.velocity_callback)
-        self.angle_sub = rospy.Subscriber("/target_wheel_angle", Float32, self.angle_callback, queue_size=1)
+        self.angle_sub = rospy.Subscriber("/wheel_angle_current", Float32, self.angle_callback, queue_size=1)
 
     def gps_callback(self, data):
 
@@ -133,8 +133,6 @@ class AckEkf:
             # self.cos_lat_0 = np.cos(data.latitude)
             # self.x_0 = self.re * data.longitude * self.cos_lat_0
             # self.y_0 = self.re * data.latitude
-            self.lat_conv = 111320
-            self.lon_conv = 40075 * np.cos(self.gps_zero[1]) * 5 / 2.25
         else:
             # self.x = self.re * data.longitude * self.cos_lat_0 - self.x_0
             # self.y = self.re * data.latitude - self.y_0
@@ -142,7 +140,7 @@ class AckEkf:
             # self.z[1] = self.y
             gps_xy = np.array([[(data.latitude - self.gps_zero[0]) * self.lat_conv], [(data.longitude - self.gps_zero[1]) * self.lon_conv]])
             self.z[0:2] = self.gps_rotm.dot(gps_xy)
-            # print(gps_xy, self.z[0:2])
+            print(gps_xy)
             # self.z[0] = (data.latitude - self.gps_zero[0]) * self.lat_conv
             # self.z[1] = (data.longitude - self.gps_zero[1]) * self.lon_conv
             self.mag_yaw -= self.mag_zero
@@ -169,7 +167,7 @@ class AckEkf:
 
         # Compute step of Kalman filter
         self.w = np.linalg.norm(self.xf[3:5])
-        # print(self.xf)
+        # print(self.xf[0], self.xf[1], self.xf[2])
         self.xp[0] = self.xf[0] + dd * self.w * np.cos(self.xf[2])
         self.xp[1] = self.xf[1] + dd * self.w * np.sin(self.xf[2])
         self.xp[2] = self.xf[2] + dd * np.tan(self.p) / self.L
@@ -231,9 +229,11 @@ class AckEkf:
     # update the current vehicle wheel angle
     def angle_callback(self, data):
         # Update p from data
-        self.p = data.data * 1.1
+        print('got wheel angle data')
+        self.p = data.data
 
     def imu_cb(self, msg):
+        # print('got imu data')
         self.mag_yaw = conversion_lib.quat_from_pose2eul(msg.orientation)[0]
         self.gyro_yaw_dot = msg.angular_velocity.z
         dt = rospy.Time.now().to_sec() - self.last_imu_time

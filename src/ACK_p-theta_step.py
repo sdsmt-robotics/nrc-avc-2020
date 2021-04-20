@@ -28,10 +28,12 @@ class AckPTheta:
         self.w = self.target_vel
         init_state = rospy.get_param('~inital_state', [0, 0, 0, 0, 0, 0, 0, 0])
         time.sleep(delay_time)
+        print('started')
 
         # Set up waypoint array
         if points_array is None:
-            self.points = np.array([[0, 0], [7, 0], [2, -10], [7, -20], [0, -21], [-7, -20], [-6, -10], [-7, 0], [7, 0]])
+            self.points = np.array([[0, 0], [7, 0], [2, 10]])
+            # self.points = np.array([[0, 0], [7, 0], [2, 10], [7, 20], [0, 21], [-7, 20], [-6, 10], [-7, 0], [7, 0]])
         else:
             self.points = points_array
         self.current_point = 0
@@ -78,7 +80,7 @@ class AckPTheta:
             #print('Angle error is: ' + str(e))
             # Compute new wheel angle ans send it to the car
             phi = self.p_ik(e)
-            #print('Angle sending to car: ' + str(phi))
+            print('Angle sending to car: ' + str(phi))
             self.angle_pub.publish(phi)
             self.speed_pub.publish(self.target_vel)
 
