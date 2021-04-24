@@ -8,9 +8,9 @@
     <param name="r" value="0.07"/>
     <param name="l" value="0.36"/>
     <param name="k_p" value="250"/>
-    <param name="threshold_dist" value="2.0"/>
+    <param name="threshold_dist" value="1.0"/>
     <param name="target_vel" value="2.5"/>
-    <param name="initial_state" value="[0, 0, 0, 0, 0, 0, 0, 0]"/>
+    <param name="initial_state" value="[0, 0, 0]"/>
   </node>
 
 </launch>

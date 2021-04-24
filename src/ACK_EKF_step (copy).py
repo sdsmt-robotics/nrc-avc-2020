@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import roslib
-import rospy
 import sys
 import time
 import numpy as np
@@ -40,7 +39,6 @@ class AckEkf:
 
         # GPS reference point and time variable to set GPS_zero to the first measured coordinate
         self.t = 0
-        self.t1 = 0
         self.gps_zero = [0, 0]
         self.lat_conv = 111320
         self.lon_conv = 79968
@@ -61,11 +59,11 @@ class AckEkf:
         # Measurement matrix
         self.H = None
         self.H_all = np.eye(3)
-        self.H_gps = np.zeros((2, 3))
-        self.H_gps[0, 0] = 1
-        self.H_gps[1, 1] = 1
-        self.H_imu = np.zeros((1, 3))
-        self.H_imu[0, 2] = 1
+        self.H_gps = np.zeros(3, 2)
+        self.H_imu[0, 0] = 1
+        self.H_imu[1, 1] = 1
+        self.H_imu = np.zeros(3, 1)
+        self.H_imu[2, 0] = 1
         self.H_none = np.eye(3)
 
         # Measurement covariance
@@ -87,7 +85,7 @@ class AckEkf:
         self.P = np.diag([xy_std**2, xy_std**2, yaw_std**2])
 
         # Estimated state
-        self.xp = np.zeros(3)
+        self.xp = np.zeros(8)
 
         # Store last time for dt calculation
         self.last_time = rospy.Time.now().to_sec()
@@ -114,14 +112,15 @@ class AckEkf:
         dd = self.r * dt
 
         # Check sensor last measurement times
-        if self.last_time - self.last_gps_time < self.sensor_timeout:
-            if self.last_time - self.last_imu_time < self.sensor_timeout:
+        if self.last_gps_time - self.last_time < self.sensor_timeout:
+            if self.last_imu_time - self.last_time < self.sensor_timeout:
                 # We have data from both sensors
                 self.H = self.H_all
                 self.z = np.zeros(3)
                 self.z[0] = self.gps_x
                 self.z[1] = self.gps_y
                 self.R = self.R_all
+                self.mag_yaw -= self.mag_zero
                 if np.abs(self.mag_yaw - self.xf[2]) < np.pi:
                     self.z[2] = self.mag_yaw
                 else:
@@ -136,11 +135,12 @@ class AckEkf:
                 self.z[0] = self.gps_x
                 self.z[1] = self.gps_y
                 self.R = self.R_gps
-        elif self.last_time - self.last_imu_time < self.sensor_timeout:
+        elif self.last_imu_time - self.last_time < self.sensor_timeout:
             # We only have IMU data
             self.H = self.H_imu
-            self.z = np.zeros(1)
+            self.z = []
             self.R = self.R_imu
+            self.mag_yaw -= self.mag_zero
             if np.abs(self.mag_yaw - self.xf[2]) < np.pi:
                 self.z[0] = self.mag_yaw
             else:
@@ -155,7 +155,7 @@ class AckEkf:
             self.z = None
             self.R = self.R_none
 
-        if self.last_time - self.last_gps_time > self.sensor_timeout:
+        if self.last_gps_time - self.last_time > self.sensor_timeout:
             print('bad GPS data')
 
         # Compute one step of Kalman filter
@@ -163,9 +163,6 @@ class AckEkf:
         self.xp[0] = self.xf[0] + dt * self.w * np.cos(self.xf[2])
         self.xp[1] = self.xf[1] + dt * self.w * np.sin(self.xf[2])
         self.xp[2] = self.xf[2] + dt * self.w * np.tan(self.p) / self.L
-        print(self.xp)
-        print(self.xf)
-        print()
 
         # Compute the motion jacobian H
         F1 = [1, 0, -dt * self.w * np.sin(self.xf[2])]
@@ -198,17 +195,15 @@ class AckEkf:
         odom.header.frame_id = 'world'
         odom.header.stamp = rospy.Time.now()
         odom.pose.pose = conversion_lib.pose_from_state_3D(self.xf[:, None])
-        cov_6x6 = np.zeros((6, 6))
-        cov_6x6[0:3, 0:3] = self.P
-        cov = conversion_lib.state_cov_to_covariance_matrix(cov_6x6)
+        cov = conversion_lib.state_cov_to_covariance_matrix(self.P)
         odom.pose.covariance = list(conversion_lib.covariance_to_ros_covariance(cov))
         self.pose_pub.publish(odom)
 
     def gps_callback(self, data):
         self.last_gps_time = rospy.Time.now().to_sec()
         # Convert the GPS coordinates to meters away from the first recorded coordinate
-        if self.t1 == 0:
-            self.t1 = 1
+        if self.t == 0:
+            self.t = 1
             self.gps_zero[0] = data.latitude
             self.gps_zero[1] = data.longitude
             self.gps_x = 0
@@ -229,19 +224,16 @@ class AckEkf:
         self.p = data.data
 
     def imu_cb(self, msg):
+        # print('got imu data')
         self.last_imu_time = rospy.Time.now().to_sec()
-        if self.t == 0:
-            self.mag_zero = conversion_lib.quat_from_pose2eul(msg.orientation)[0]
-            self.t = 1
-        self.mag_yaw = conversion_lib.quat_from_pose2eul(msg.orientation)[0] - self.mag_zero
-        print(self.mag_yaw, self.mag_zero)
+        self.mag_yaw = conversion_lib.quat_from_pose2eul(msg.orientation)[0]
 
 
 def main():
     rospy.init_node('ack_ekf', anonymous=True)
     ekf = AckEkf()
-    r = rospy.Rate(ekf.update_frequency)
-    ekf.sensor_timeout = 1
+    r = rospy.rate(1 / ekf.update_frequency)
+    ekf.sensor_timeout = 1 / ekf.update_frequency
     try:
         while True:
             r.sleep()

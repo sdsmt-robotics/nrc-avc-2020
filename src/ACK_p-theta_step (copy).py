@@ -27,15 +27,14 @@ class AckPTheta:
         self.robot_d_sq = rospy.get_param('~threshold_dist', 1) ** 2
         self.target_vel = rospy.get_param('~target_vel', 1)
         self.w = self.target_vel
-        init_state = rospy.get_param('~inital_state', [0, 0, 0])
+        init_state = rospy.get_param('~inital_state', [0, 0, 0, 0, 0, 0, 0, 0])
         time.sleep(delay_time)
         print('started')
-        self.start_time = rospy.Time.now().to_sec()
 
         # Set up waypoint array
         if points_array is None:
-            # self.points = np.array([[0, 0], [7, -1], [1, 10], [8, 20]])
-            self.points = np.array([[0, 0], [7, 0], [1, 10], [9, 20], [0, 20], [-7, 21], [-6, 10], [-7, -1], [3, -1]])
+            self.points = np.array([[0, 0], [7, 0], [2, 10]])
+            # self.points = np.array([[0, 0], [7, 0], [2, 10], [7, 20], [0, 21], [-7, 20], [-6, 10], [-7, 0], [7, 0]])
         else:
             self.points = points_array
         self.current_point = 0
@@ -83,12 +82,7 @@ class AckPTheta:
             # Compute new wheel angle ans send it to the car
             phi = self.p_ik(e)
             print('Angle sending to car: ' + str(phi))
-            if phi < -0.5:
-                 self.angle_pub.publish(-2)
-            elif phi > 0.5:
-                self.angle_pub.publish(2)
-            else:
-                self.angle_pub.publish(0)
+            self.angle_pub.publish(phi)
             self.speed_pub.publish(self.target_vel)
 
             ## Determine if we passed the obstacle

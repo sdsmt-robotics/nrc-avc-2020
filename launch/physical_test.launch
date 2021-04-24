@@ -18,10 +18,9 @@
      name="ekf_localizer_node" output="screen" clear_params="true">
     <param name="gps_offset_angle" value="0"/>
     <param name="frequency" value="10"/>
-    <param name="sensor_timeout" value="2.0"/>
     <param name="r" value="0.07"/>
     <param name="l" value="0.36"/>
-    <param name="initial_state" value="[0, 0, 0, 0, 0, 0, 0, 0]"/>
+    <param name="initial_state" value="[0, 0, 0]"/>
   </node>
 
 </launch>

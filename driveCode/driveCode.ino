@@ -91,12 +91,13 @@ void setup() {
 
   if (DEBUG) Serial.println("Calibrating IMU, Please spin me around!");
   ledStrip.setColorRGB(0, 0, 255);
-  imu_calibrate_hard_iron(calibration_duration)
+  IMU.begin();
+  delay(1000);
+  imu_calibrate_hard_iron(calibration_duration);
 
   ledStrip.setColorRGB(0, 255, 0);
   if (DEBUG) Serial.println("Ready!");
 
-  IMU.begin();
 
   // Initialize all publishers and subscribers
   nh.initNode();
@@ -415,8 +416,9 @@ void imu_calibrate_hard_iron(int duration)
     float mx_max = 0;
     float my_max = 0;
     float mag_x, mag_y, mag_z;
-    int end_time = millis() + duration * 1000;
-    while (millis() < end_time)
+    float end_time = duration * 1000;
+    float current_time = 0;
+    while (current_time < end_time)
     {
         if (IMU.magneticFieldAvailable())
         {
@@ -429,5 +431,7 @@ void imu_calibrate_hard_iron(int duration)
             mag_offset_y = (my_min + my_max) / 2;
         }
         delay(10);
+        current_time += 10;
     }
+    return;
 }
