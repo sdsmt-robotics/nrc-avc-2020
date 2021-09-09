@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="rosserial_python" type="serial_node.py" name="arduino_node" output="screen">
+    <param name="port" value="/dev/ttyUSB1"/>
+  </node>
+
+  <!--<node pkg="avc_nrc_2020" type="test_driving.py" name="test_driving_node" output="screen">
+  </node>-->
+</launch>

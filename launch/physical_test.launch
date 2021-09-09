@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+
+  <include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch">
+    <arg name="baud" value="115200"/>
+    <arg name="port" value="/dev/ttyUSB0"/>
+  </include>
+
+  <node pkg="rosserial_python" type="serial_node.py" name="arduino_node" output="screen">
+    <param name="port" value="/dev/ttyACM0"/>
+  </node>
+
+  <!-- Diagnostic tools -->
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find avc_nrc_2020)/rviz/localization.rviz"/>
+
+  <!-- robot_localization nodes: -->
+  <node pkg="avc_nrc_2020" type="ACK_EKF_step.py"
+     name="ekf_localizer_node" output="screen" clear_params="true">
+    <param name="gps_offset_angle" value="0"/>
+    <param name="frequency" value="10"/>
+    <param name="r" value="0.07"/>
+    <param name="l" value="0.36"/>
+    <param name="initial_state" value="[0, 0, 0]"/>
+  </node>
+
+</launch>

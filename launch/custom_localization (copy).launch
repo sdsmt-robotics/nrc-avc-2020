@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<launch>
+
+  <include file="$(find nmea_navsat_driver)/launch/nmea_serial_driver.launch">
+    <arg name="baud" value="9600"/>
+  </include>
+
+  <node pkg="rosserial_python" type="serial_node.py" name="arduino_node" output="screen">
+    <param name="port" value="/dev/ttyUSB1"/>
+  </node>
+
+  <!-- robot_localization nodes: -->
+  <node pkg="avc_nrc_2020" type="ACK_EKF_step.py"
+     name="ekf_localizer_node" output="screen" clear_params="true">
+    <param name="frequency" value="10"/>
+    <param name="sensor_timeout" value="2.0"/>
+    <param name="r" value="0.07"/>
+    <param name="l" value="0.36"/>
+    <param name="initial_state" value="[0, 0, 0, 0, 0, 0, 0, 0]"/>
+  </node>
+
+  <node pkg="avc_nrc_2020" type="ACK_p-theta_step.py"
+     name="p_theta_controller_node" output="screen" clear_params="true">
+    <param name="delay_time" value="30"/>
+    <!--<param name="points_array" value="[[10, -7], [0, 0], [-10, -7], [-10, 7], [0, 6], [10, 7], [10, -7]]"/>-->
+    <param name="r" value="0.07"/>
+    <param name="l" value="0.36"/>
+    <param name="k_p" value="10"/>
+    <param name="threshold_dist" value="1.0"/>
+    <param name="target_vel" value="1.0"/>
+    <param name="initial_state" value="[0, 0, 0, 0, 0, 0, 0, 0]"/>
+  </node>
+
+</launch>
