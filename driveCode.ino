@@ -2,6 +2,7 @@
 #include "LedStrip.h"
 #include "PID.h"
 #include "Encoder.h"
+#include "Imu.h"
 
 #define DEBUG true
 
@@ -19,22 +20,29 @@ const int default_angle_M = 90;
 const int default_lower_angle_M = 0;
 const int default_upper_angle_M = 170;
 
+const float WHEEL_DIAMETER = 140; // Wheel diameter in mm
+const float WHEEL_CIRC = WHEEL_DIAMETER * PI / 1000; // Wheel cir in m
+const float RPM_TO_M_S = WHEEL_CIRC / 60;  // Conversion from RPM to M/s
+
+const float DEG2RAD = PI / 180.0f;
+const float FT2M = 3.28084;
+const float ROT_2_M = WHEEL_CIRC / FT2M;
 
 //Maximum power allowed
 const float maxPower = 0.2;
 
-// Conversion from RPM to M/s
-const float RPM_TO_M_S = (140 * PI) / 1000 / 60;
 
 // Controller update interval in milliseconds
 const unsigned long UPDATE_INTERVAL = 10;
 
 LedStrip ledStrip(8, 7, 6);
 
-float kp = 0.06, ki = 0.02, kd = 0.0, N = 10;
+float kp = 0.08, ki = 0.1, kd = 0.0, N = 10;
 PID speedController(kp, ki, kd, N, UPDATE_INTERVAL);
 
 Encoder encoder(5, 4.5, 100);
+
+Imu imu;
 
 
 //================SETUP==============================
@@ -49,12 +57,14 @@ void setup() {
   
   //Initialize servos and main motor
   if (DEBUG) Serial.println("Initializeing motors...");
-  speedController.setLimits(0, 0.25);
+  speedController.setLimits(0, 0.30);
   initMotors();
   
   if (DEBUG) Serial.println("Initializeing encoder...");
   encoder.init();
 
+  // Init IMU
+  imu.init();
   
   ledStrip.setColorRGB(0, 255, 0);
   if (DEBUG) Serial.println("Ready!");
@@ -63,12 +73,100 @@ void setup() {
 
 //================LOOP==============================
 void loop() {
-  testChangingSpeed();
+  float speedStraight = 5.0;
+  float speedTurn = 3.0;
+
+  delay(20*1000);
+
+  // Around first pilon
+  driveDist(21 * FT2M, speedStraight);
+  turnAngle(-120, speedTurn);
+
+  // Around the center pilon
+  driveDist(33 * FT2M, speedStraight);
+  turnAngle(60, speedTurn);
+  driveDist(33 * FT2M, speedStraight);
+
+  // Off the ramp
+  turnAngle(-120, speedTurn);
+  driveDist(42 * FT2M, speedStraight);
+
+  // Through th eloop
+  turnAngle(-95, speedTurn);
+  driveDist(31 * FT2M, speedStraight);
+  turnAngle(10, speedTurn);
+  driveDist(31 * FT2M, speedStraight);
+  
+  // Through finish line
+  turnAngle(-95, speedTurn);
+  driveDist(30 * FT2M, speedStraight);
+
+  while (true) {}
 }
 
 
 
 //================CAR Functions======================
+/**
+ * Drive a distance at a set speed.
+ * 
+ * @param dist - Distance to drive (feet).
+ * @param speed - Speed to drive (fps).
+ */
+void driveDist(float dist, float speed) {
+  // Convert  ft to meters
+  dist *= FT2M;  
+  speed *= FT2M;
+
+  // Reset position and set driving to straight
+  encoder.resetRevCount();
+  setDriveAngle(0.0);
+  
+  // Drive until gone the appropriate distance
+  while(getDriveDist() < dist) {
+    setDriveSpeed(speed);
+  }
+  
+  setDrivePower(0);
+}
+
+/**
+ * Drive with wheels turned until reach a certain angle.
+ */
+void turnAngle(float angle, float speed) {
+  float curAngle = 0;
+  float wheelAngle = 25;
+  bool neg = angle < 0;
+
+  angle *= DEG2RAD;
+
+  imu.reset();                       
+
+  if (angle > 0) {
+    setDriveAngle(wheelAngle);
+  } else {
+    setDriveAngle(-wheelAngle);
+  }
+
+  // TODO: This is very likely increadibly wrong.
+  while ((neg && curAngle > angle) || (!neg && curAngle < angle)) {
+    setDriveSpeed(speed);
+    imu.update();
+    curAngle = imu.Get_val();
+
+    // Acount for the nromalizing to [0,2*PI]
+    if (curAngle > PI) {
+      curAngle -= 2 * PI;
+    }
+    
+    delay(1);
+    Serial.println(curAngle);
+  }
+  
+  setDriveAngle(0.0);
+  setDrivePower(0);
+}
+
 //Attempts to set the motor to a reasonable speed based on input.
 //Returns false on invalid input although velocity will be set to max or min depending.
 float power;
@@ -78,9 +176,9 @@ void setDriveSpeed(float speed) //m/s
   speedController.setTarget(speed);
 
   // Do a reset if it's been a while
-  if (millis() - lastUpdate > UPDATE_INTERVAL * 5) {
-    speedController.reset();
-  }
+  // if (millis() - lastUpdate > UPDATE_INTERVAL * 5) {
+  //   speedController.reset();
+  // }
 
   if (millis() - lastUpdate > UPDATE_INTERVAL) {
     encoder.estimateSpeed();
@@ -93,6 +191,11 @@ void setDriveSpeed(float speed) //m/s
     
     lastUpdate = millis();
   }
+}
+
+// Return the drive distance in meters since last reset
+float getDriveDist() {
+  return encoder.getRevCount() * WHEEL_CIRC;
 }
 
 /**
@@ -220,7 +323,7 @@ void testEncoder() {
  * Test changing the speed to a new value every three seconds.
  */
 void testChangingSpeed() {
-  const float speeds[] = {2, 3, 0.8};
+  const float speeds[] = {2, 3, 1};
   const int numSpeeds = 3;
   static int speedIndex = 0;
   static unsigned long lastSpeedChange = millis();
@@ -254,7 +357,7 @@ void testChangingSpeed() {
   }
 
   //go to the next speed if past time
-  if (millis() - lastSpeedChange > 2000) {
+  if (millis() - lastSpeedChange > 3000) {
     speedIndex++;
     lastSpeedChange = millis();
     if (speedIndex >= numSpeeds) {

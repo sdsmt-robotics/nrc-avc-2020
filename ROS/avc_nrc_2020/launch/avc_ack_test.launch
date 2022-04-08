@@ -1,4 +1,0 @@
-<launch>
-	<node pkg="avc_nrc_2020" type="ACK_p-theta_step" name="ack_p_theta" output="screen">
-	</node>
-</launch>

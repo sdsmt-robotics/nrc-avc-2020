@@ -16,7 +16,9 @@ public:
     int estimateSpeed();
     int getSpeed();
     int getFilteredSpeed();
-    volatile int ticks = 0;  // Number of ticks since last speed estimate
+    float getRevCount();
+    void resetRevCount();
+    
 private:
     //Static stuff for interrupt handling
     static void isr();
@@ -26,7 +28,8 @@ private:
     // Pins and pin registers
     int trigPin;
     
-    //volatile int ticks = 0;  // Number of ticks since last speed estimate
+    volatile int ticks = 0;  // Number of ticks since last speed estimate
+    volatile unsigned int totTicks = 0;  // Number of ticks since last speed estimate
 
     volatile int speed; //current speed of the motor in rpm
     int filteredSpeed; //current filtered speed of the motor in rpm

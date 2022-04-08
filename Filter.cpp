@@ -12,28 +12,31 @@
 
 #include "Filter.h"
 
-
 /**
  * @brief Constructor for the class.
  * 
  * @param size - size for the filter buffer.
  */
-Filter::Filter(unsigned size) {
-    this->bufferSize = size;
+Filter::Filter(unsigned size)
+{
 
-    //allocate our array
-    buffer = new int[size];
+  //sets up the buffer array
+  this->bufferSize = size; //"this" unnecessary
 
-    //reset the values in the buffer
-    reset();
+  //allocate our array
+  buffer = new double[size];
+
+  //reset the values in the buffer
+  reset();
 }
 
 /**
  * @brief Destructor for the class.
  * 
  */
-Filter::~Filter() {
-    delete [] buffer;
+Filter::~Filter()
+{
+  delete[] buffer;
 }
 
 /**
@@ -43,19 +46,20 @@ Filter::~Filter() {
  * 
  * @param fillVal - initial value for the filter. (Defaults to 0.)
  */
-void Filter::reset(int fillVal) {
-    //fill the buffer with the given value
-    for (int i = 0; i < bufferSize; i++) {
-        buffer[i] = fillVal;
-    }
+void Filter::reset(double fillVal)
+{
+  //fill the buffer with the given value
+  for (int i = 0; i < bufferSize; i++)
+  {
+    buffer[i] = fillVal;
+  }
 
-    //update the running totals
-    total = fillVal * bufferSize;
+  //update the running totals
+  total = fillVal * bufferSize;
 
-    //update the filtered value
-    filteredVal = fillVal;
+  //update the filtered value
+  filteredVal = fillVal;
 }
-
 
 /**
  * @brief Add a new value to the filter and get the filtered output.
@@ -63,15 +67,17 @@ void Filter::reset(int fillVal) {
  * @param newVal - value to add
  * @return the filtered value
  */
-int Filter::filter(int newVal) {
-  int oldVal = buffer[curIndex];
-  
+double Filter::filter(double newVal)
+{
+  double oldVal = buffer[curIndex];
+
   //add the new value
   buffer[curIndex] = newVal;
 
   //update position in the rolling array
   curIndex++;
-  if (curIndex >= bufferSize) {
+  if (curIndex >= bufferSize)
+  {
     curIndex = 0;
   }
 
@@ -83,12 +89,12 @@ int Filter::filter(int newVal) {
   return filteredVal;
 }
 
-
 /**
  * @brief Get the filtered value from the filter.
  * 
  * @return the filtered value.
  */
-int Filter::getFilteredVal() {
+double Filter::getFilteredVal()
+{
   return filteredVal;
 }

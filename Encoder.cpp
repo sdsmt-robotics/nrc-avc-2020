@@ -17,7 +17,7 @@ Encoder * Encoder::instance;
  * @param ticksPerRotation - Number of encoder ticks per rotation.
  */
 Encoder::Encoder(int trigPin, float ticksPerRotation, float minRpm) 
-    : trigPin(trigPin), ticksPerRotation(ticksPerRotation), speedFilter(40, 40, 0.1)  { //speedFilter(300, 300, 0.025)
+    : trigPin(trigPin), ticksPerRotation(ticksPerRotation), speedFilter(40, 40, 0.25)  { //speedFilter(300, 300, 0.025)
     timeOut = 60 * 1000 * 1000 / (ticksPerRotation * minRpm);
 }
 
@@ -80,6 +80,14 @@ int Encoder::getFilteredSpeed() {
   return filteredSpeed;
 }
 
+float Encoder::getRevCount() {
+  return totTicks / ticksPerRotation;
+}
+
+void Encoder::resetRevCount() {
+  totTicks = 0;
+}
+
 /**
  * Handle an encoder tick.
  */
@@ -87,6 +95,7 @@ void Encoder::tick() {
   lastTickTime = micros();
 
   ++ticks;
+  ++totTicks;
 }
 
 /**
